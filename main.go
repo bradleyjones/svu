@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"runtime/debug"
+	"strconv"
 	"strings"
 
 	"github.com/Masterminds/semver"
@@ -13,12 +14,14 @@ import (
 )
 
 var (
-	app         = kingpin.New("svu", "semantic version util")
-	nextCmd     = app.Command("next", "prints the next version based on the git log").Alias("n").Default()
-	majorCmd    = app.Command("major", "new major version")
-	minorCmd    = app.Command("minor", "new minor version").Alias("m")
-	patchCmd    = app.Command("patch", "new patch version").Alias("p")
-	currentCmd  = app.Command("current", "prints current version").Alias("c")
+	app           = kingpin.New("svu", "semantic version util")
+	nextCmd       = app.Command("next", "prints the next version based on the git log").Alias("n").Default()
+	majorCmd      = app.Command("major", "new major version")
+	minorCmd      = app.Command("minor", "new minor version").Alias("m")
+	patchCmd      = app.Command("patch", "new patch version").Alias("p")
+	currentCmd    = app.Command("current", "prints current version").Alias("c")
+	preReleaseCmd = app.Command("prerelease", "new pre release version based on the next version calculated from git log").
+			Alias("pr")
 	pattern     = app.Flag("pattern", "limits calculations to be based on tags matching the given pattern").String()
 	prefix      = app.Flag("prefix", "set a custom prefix").Default("v").String()
 	stripPrefix = app.Flag("strip-prefix", "strips the prefix from the tag").Default("false").Bool()
@@ -88,15 +91,68 @@ func nextVersion(cmd string, current *semver.Version, tag, preRelease, build str
 	}
 
 	var err error
-	result, err = result.SetPrerelease(preRelease)
-	if err != nil {
-		return result, err
+	if cmd == preReleaseCmd.FullCommand() {
+		next := findNext(current, tag, *directory)
+		result, err = nextPreRelease(current, &next, preRelease)
+		if err != nil {
+			return result, err
+		}
+	} else {
+		result, err = result.SetPrerelease(preRelease)
+		if err != nil {
+			return result, err
+		}
 	}
+
 	result, err = result.SetMetadata(build)
 	if err != nil {
 		return result, err
 	}
 	return result, nil
+}
+
+func nextPreRelease(current, next *semver.Version, preRelease string) (semver.Version, error) {
+	suffix := ""
+	if preRelease != "" {
+		// Check if the suffix already contains a version number, if it does assume the user wants to explicitly set the version so use that
+		if _, err := strconv.Atoi(suffix); err == nil {
+			return current.SetPrerelease(suffix)
+		}
+		suffix = preRelease
+
+		// Check if the prerelease suffix is the same as the current prerelease
+		preSuffix := strings.Split(current.Prerelease(), ".")[0]
+		if preSuffix == preRelease {
+			suffix = current.Prerelease()
+		}
+	} else if current.Prerelease() != "" {
+		suffix = current.Prerelease()
+	} else {
+		return *current, fmt.Errorf(
+			"--pre-release suffix is required to calculate next pre-release version as suffix could not be determined from current version: %s",
+			current.String(),
+		)
+	}
+
+	splitSuffix := strings.Split(suffix, ".")
+	preReleaseName := splitSuffix[0]
+	preReleaseVersion := 0
+
+	currentWithoutPreRelease, _ := current.SetPrerelease("")
+
+	if !next.GreaterThan(&currentWithoutPreRelease) {
+		preReleaseVersion = -1
+		if len(splitSuffix) == 2 {
+			preReleaseName = splitSuffix[0]
+			preReleaseVersion, _ = strconv.Atoi(splitSuffix[1])
+		} else if len(splitSuffix) > 2 {
+			preReleaseName = splitSuffix[len(splitSuffix)-1]
+		}
+
+		preReleaseVersion++
+	}
+
+	return next.SetPrerelease(fmt.Sprintf("%s.%d", preReleaseName, preReleaseVersion))
 }
 
 func getCurrentVersion(tag string) (*semver.Version, error) {
