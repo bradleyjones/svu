@@ -8,25 +8,31 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/alecthomas/kingpin"
-	"github.com/caarlos0/svu/internal/git"
-	"github.com/caarlos0/svu/internal/svu"
+	"github.com/bradleyjones/svu/internal/git"
+	"github.com/bradleyjones/svu/internal/svu"
 )
 
 var (
-	app                 = kingpin.New("svu", "semantic version util")
-	nextCmd             = app.Command("next", "prints the next version based on the git log").Alias("n").Default()
-	majorCmd            = app.Command("major", "new major version")
-	minorCmd            = app.Command("minor", "new minor version").Alias("m")
-	patchCmd            = app.Command("patch", "new patch version").Alias("p")
-	currentCmd          = app.Command("current", "prints current version").Alias("c")
-	pattern             = app.Flag("pattern", "limits calculations to be based on tags matching the given pattern").String()
-	prefix              = app.Flag("prefix", "set a custom prefix").Default("v").String()
-	stripPrefix         = app.Flag("strip-prefix", "strips the prefix from the tag").Default("false").Bool()
-	preRelease          = app.Flag("pre-release", "adds a pre-release suffix to the version, without the semver mandatory dash prefix").String()
-	build               = app.Flag("build", "adds a build suffix to the version, without the semver mandatory plug prefix").String()
-	directory           = app.Flag("directory", "specifies directory to filter commit messages by").Default("").String()
-	tagMode             = app.Flag("tag-mode", "determines if latest tag of the current or all branches will be used").Default("current-branch").Enum("current-branch", "all-branches")
-	forcePatchIncrement = nextCmd.Flag("force-patch-increment", "forces a patch version increment regardless of the commit message content").Default("false").Bool()
+	app         = kingpin.New("svu", "semantic version util")
+	nextCmd     = app.Command("next", "prints the next version based on the git log").Alias("n").Default()
+	majorCmd    = app.Command("major", "new major version")
+	minorCmd    = app.Command("minor", "new minor version").Alias("m")
+	patchCmd    = app.Command("patch", "new patch version").Alias("p")
+	currentCmd  = app.Command("current", "prints current version").Alias("c")
+	pattern     = app.Flag("pattern", "limits calculations to be based on tags matching the given pattern").String()
+	prefix      = app.Flag("prefix", "set a custom prefix").Default("v").String()
+	stripPrefix = app.Flag("strip-prefix", "strips the prefix from the tag").Default("false").Bool()
+	preRelease  = app.Flag("pre-release", "adds a pre-release suffix to the version, without the semver mandatory dash prefix").
+			String()
+	build = app.Flag("build", "adds a build suffix to the version, without the semver mandatory plug prefix").
+		String()
+	directory = app.Flag("directory", "specifies directory to filter commit messages by").Default("").String()
+	tagMode   = app.Flag("tag-mode", "determines if latest tag of the current or all branches will be used").
+			Default("current-branch").
+			Enum("current-branch", "all-branches")
+	forcePatchIncrement = nextCmd.Flag("force-patch-increment", "forces a patch version increment regardless of the commit message content").
+				Default("false").
+				Bool()
 )
 
 func main() {
